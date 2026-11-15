@@ -1,7 +1,10 @@
 import Navigation from './navigation';
+import { FavoritosProvider } from '../context/favoritosContext';
 
 export default function RootLayout() {
     return (
-        <Navigation />
+        <FavoritosProvider>
+            <Navigation />
+        </FavoritosProvider>
     );
 }

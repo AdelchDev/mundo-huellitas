@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useFavoritos } from '../../context/favoritosContext';
 
 const colors = {
     card: '#FFFCF8',
@@ -12,7 +13,8 @@ const colors = {
 };
 
 const Animal = ({ animal }) => {
-    const [favorito, setFavorito] = useState(false);
+    const { toggleFavorito, esFavorito } = useFavoritos();
+    const favorito = esFavorito(animal.id);
 
     useEffect(() => {
         console.log('Animal renderizado', animal.id);
@@ -33,7 +35,7 @@ const Animal = ({ animal }) => {
 
                 <Pressable
                     style={styles.fav}
-                    onPress={() => setFavorito(!favorito)}
+                    onPress={() => toggleFavorito(animal.id)}
                 >
                     <MaterialIcons
                         name={favorito ? 'favorite' : 'favorite-border'}
