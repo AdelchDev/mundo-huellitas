@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Posteo from '../posteo';
 import { getPosteos } from '../../services/posteos';
 import { getAnimales } from '../../services/animales';
+import { apiRequest } from "../../services/api";
 
 const ListadoPosteos = () => {
     const [posteos, setPosteos] = useState([]);

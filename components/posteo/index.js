@@ -3,6 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFavoritos } from '../../context/favoritosContext';
 import { useRouter } from 'expo-router';
+import { apiRequest } from "../../services/api";
 
 const colors = {
     card: '#FFFCF8',
