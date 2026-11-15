@@ -1,14 +1,20 @@
 import { useEffect } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useFavoritos } from '../../context/favoritosContext';
 
 const colors = {
     card: '#FFFCF8',
     primary: '#795548',
     secondary: '#8A776B',
     background: '#F4E9DF',
+    accent: '#C98276',
 };
 
 const Posteo = ({ posteo, animal }) => {
+    const { toggleFavorito, esFavorito } = useFavoritos();
+
+    const favorito = animal ? esFavorito(animal.id) : false;
 
     useEffect(() => {
         console.log('Posteo renderizado', posteo.titulo);
@@ -29,9 +35,24 @@ const Posteo = ({ posteo, animal }) => {
             ) : null}
 
             <View style={styles.content}>
-                <Text style={styles.titulo}>
-                    {posteo.titulo}
-                </Text>
+                <View style={styles.tituloContainer}>
+                    <Text style={styles.titulo}>
+                        {posteo.titulo}
+                    </Text>
+
+                    {animal && (
+                        <Pressable
+                            style={styles.fav}
+                            onPress={() => toggleFavorito(animal.id)}
+                        >
+                            <MaterialIcons
+                                name={favorito ? 'favorite' : 'favorite-border'}
+                                size={24}
+                                color={colors.accent}
+                            />
+                        </Pressable>
+                    )}
+                </View>
 
                 {animal && (
                     <View style={styles.animalInfo}>
@@ -72,11 +93,26 @@ const styles = StyleSheet.create({
     content: {
         padding: 16,
     },
+    tituloContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
     titulo: {
+        flex: 1,
         fontSize: 20,
         fontWeight: 'bold',
         color: colors.primary,
-        marginBottom: 10,
+    },
+    fav: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: 8,
     },
     animalInfo: {
         flexDirection: 'row',
