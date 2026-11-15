@@ -1,4 +1,4 @@
-
+import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
     ActivityIndicator,
@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useRouter } from 'expo-router';
 
 import { registerUser } from '../services/authService';
 
@@ -86,17 +85,16 @@ const Registro = () => {
 
             Alert.alert(
                 '¡Cuenta creada!',
-                'Tu registro se realizó correctamente.',
-                [
-                    {
-                        text: 'Continuar',
-                        onPress: () => {
-                            // Por ahora volvemos a la pantalla anterior.
-                            router.back();
+                 'Tu registro se realizó correctamente.',
+                     [
+                        {
+                            text: 'Continuar',
+                            onPress: () => {
+                                router.replace('/(tabs)/posteos');
+                            },
                         },
-                    },
-                ]
-            );
+                    ]
+                );
 
         } catch (error) {
             Alert.alert(
