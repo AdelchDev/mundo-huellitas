@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFavoritos } from '../../context/favoritosContext';
+import { useRouter } from 'expo-router';
 
 const colors = {
     card: '#FFFCF8',
@@ -13,8 +14,19 @@ const colors = {
 
 const Posteo = ({ posteo, animal }) => {
     const { toggleFavorito, esFavorito } = useFavoritos();
+    
+    const router = useRouter();
 
     const favorito = animal ? esFavorito(animal.id) : false;
+
+    const abrirDetalle = () => {
+        if (animal) {
+            router.push({
+                pathname: '/detalleAnimal',
+                params: { idAnimal: animal.id },
+            });
+        }
+    };
 
     useEffect(() => {
         console.log('Posteo renderizado', posteo.titulo);
@@ -27,18 +39,25 @@ const Posteo = ({ posteo, animal }) => {
     return (
         <View style={styles.card}>
             {posteo.imagen ? (
-                <Image
-                    source={{ uri: posteo.imagen }}
-                    style={styles.image}
-                    resizeMode="cover"
-                />
+                <Pressable onPress={abrirDetalle}>
+                    <Image
+                        source={{ uri: posteo.imagen }}
+                        style={styles.image}
+                        resizeMode="cover"
+                    />
+                </Pressable>
             ) : null}
 
             <View style={styles.content}>
                 <View style={styles.tituloContainer}>
-                    <Text style={styles.titulo}>
-                        {posteo.titulo}
-                    </Text>
+                    <Pressable
+                        onPress={abrirDetalle}
+                        style={styles.tituloPressable}
+                    >
+                        <Text style={styles.titulo}>
+                            {posteo.titulo}
+                        </Text>
+                    </Pressable>
 
                     {animal && (
                         <Pressable
@@ -55,24 +74,26 @@ const Posteo = ({ posteo, animal }) => {
                 </View>
 
                 {animal && (
-                    <View style={styles.animalInfo}>
-                        <Text style={styles.animalName}>
-                            {animal.nombre}
+                    <Pressable onPress={abrirDetalle}>
+                        <View style={styles.animalInfo}>
+                            <Text style={styles.animalName}>
+                                {animal.nombre}
+                            </Text>
+
+                            <Text style={styles.animalType}>
+                                {animal.especie}
+                            </Text>
+                        </View>
+
+                        <Text style={styles.texto}>
+                            {posteo.texto}
                         </Text>
 
-                        <Text style={styles.animalType}>
-                            {animal.especie}
+                        <Text style={styles.fecha}>
+                            {posteo.fecha}
                         </Text>
-                    </View>
+                    </Pressable>
                 )}
-
-                <Text style={styles.texto}>
-                    {posteo.texto}
-                </Text>
-
-                <Text style={styles.fecha}>
-                    {posteo.fecha}
-                </Text>
             </View>
         </View>
     );
