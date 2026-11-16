@@ -1,5 +1,11 @@
 const MAX_ANIMALES = 5;
 
+const REFUGIO_MOCK = {
+    idUsuario: 'refugio1',
+    nombreRefugio: 'Refugio Patitas Felices',
+    cantidadPublicaciones: 5,
+};
+
 const animalesDisponibles = [
     {
         nombre: 'Luna',
@@ -48,29 +54,101 @@ const animalesDisponibles = [
     },
 ];
 
-const crearAnimal = (index) => {
+const crearAnimalMock = (index) => {
     const animal = animalesDisponibles[index % animalesDisponibles.length];
 
     return {
         id: index + 1,
         ...animal,
-        idUsuario: 'refugio1'
+        ...REFUGIO_MOCK,
+        adoptado: false,
     };
 };
 
-const animales = Array.from(
+let animales = Array.from(
     { length: MAX_ANIMALES },
-    (_, index) => crearAnimal(index)
+    (_, index) => crearAnimalMock(index)
 );
+
+let nextAnimalId = MAX_ANIMALES + 1;
 
 const getAnimales = () => {
     // TODO: Implementar la logica para obtener los animales desde una API.
-    // Por ahora, devolvemos los animales hardcodeados.
     return new Promise((resolve) => {
         setTimeout(() => {
-            resolve(animales);
-        }, 1000);
+            resolve([...animales]);
+        }, 300);
     });
 };
 
-export { getAnimales };
+const agregarAnimal = (animalData) => {
+    const raza =
+        typeof animalData.raza === 'string' && animalData.raza.trim()
+            ? animalData.raza.trim()
+            : 'Mestizo';
+
+    const animal = {
+        id: nextAnimalId++,
+        ...animalData,
+        raza,
+        adoptado: false,
+    };
+
+    animales = [animal, ...animales];
+
+    return Promise.resolve(animal);
+};
+
+const marcarAnimalAdoptado = (idAnimal, idUsuario) => {
+    const animal = animales.find((item) => item.id === Number(idAnimal));
+
+    if (!animal) {
+        return Promise.reject(new Error('No se encontró el animal.'));
+    }
+
+    if (animal.idUsuario !== idUsuario) {
+        return Promise.reject(
+            new Error('Solo el refugio que publicó puede marcarlo como adoptado.')
+        );
+    }
+
+    if (animal.adoptado) {
+        return Promise.resolve(animal);
+    }
+
+    animales = animales.map((item) =>
+        item.id === Number(idAnimal) ? { ...item, adoptado: true } : item
+    );
+
+    return Promise.resolve(
+        animales.find((item) => item.id === Number(idAnimal))
+    );
+};
+
+const actualizarCantidadPublicaciones = (idUsuario, cantidadPublicaciones) => {
+    animales = animales.map((animal) =>
+        animal.idUsuario === idUsuario
+            ? { ...animal, cantidadPublicaciones }
+            : animal
+    );
+};
+
+const actualizarDatosRefugio = (idUsuario, datos) => {
+    animales = animales.map((animal) =>
+        animal.idUsuario === idUsuario
+            ? {
+                  ...animal,
+                  nombreRefugio: datos.nombreRefugio ?? animal.nombreRefugio,
+                  telefono: datos.telefono ?? animal.telefono,
+              }
+            : animal
+    );
+};
+
+export {
+    getAnimales,
+    agregarAnimal,
+    marcarAnimalAdoptado,
+    actualizarCantidadPublicaciones,
+    actualizarDatosRefugio,
+};

@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { registerUser } from '../services/authService';
+import { validarTelefono } from '../services/refugios';
 
 const colors = {
     primary: '#795548',
@@ -30,6 +31,7 @@ const Registro = () => {
 
     const [nombre, setNombre] = useState('');
     const [email, setEmail] = useState('');
+    const [telefono, setTelefono] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [rol, setRol] = useState('adoptante');
@@ -46,6 +48,23 @@ const Registro = () => {
                 'Por favor, completá todos los campos.'
             );
             return;
+        }
+
+        if (rol === 'refugio' && !telefono.trim()) {
+            Alert.alert(
+                'Teléfono requerido',
+                'Los refugios deben cargar un Teléfono / WhatsApp de contacto.'
+            );
+            return;
+        }
+
+        if (telefono.trim()) {
+            const telefonoValido = validarTelefono(telefono);
+
+            if (!telefonoValido.ok) {
+                Alert.alert('Teléfono inválido', telefonoValido.mensaje);
+                return;
+            }
         }
 
         // Validar email
@@ -79,22 +98,28 @@ const Registro = () => {
             const result = await registerUser({
                 nombre: nombre.trim(),
                 email: email.trim().toLowerCase(),
+                telefono: telefono.trim(),
                 password,
                 rol,
             });
 
+            const destino =
+                result?.user?.rol === 'refugio'
+                    ? '/(refugio)/mis-posteos'
+                    : '/(tabs)/posteos';
+
             Alert.alert(
                 '¡Cuenta creada!',
-                 'Tu registro se realizó correctamente.',
-                     [
-                        {
-                            text: 'Continuar',
-                            onPress: () => {
-                                router.replace('/(tabs)/posteos');
-                            },
+                'Tu registro se realizó correctamente.',
+                [
+                    {
+                        text: 'Continuar',
+                        onPress: () => {
+                            router.replace(destino);
                         },
-                    ]
-                );
+                    },
+                ]
+            );
 
         } catch (error) {
             Alert.alert(
@@ -188,6 +213,29 @@ const Registro = () => {
                                     keyboardType="email-address"
                                     autoCapitalize="none"
                                     autoCorrect={false}
+                                />
+                            </View>
+
+                            {/* Teléfono / WhatsApp */}
+                            <Text style={styles.label}>
+                                Teléfono / WhatsApp
+                                {rol === 'refugio' ? ' *' : ''}
+                            </Text>
+
+                            <View style={styles.inputContainer}>
+                                <Ionicons
+                                    name="logo-whatsapp"
+                                    size={20}
+                                    color={colors.secondary}
+                                />
+
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Más de 8 dígitos (ej: 5491123456789)"
+                                    placeholderTextColor="#B5A69B"
+                                    value={telefono}
+                                    onChangeText={setTelefono}
+                                    keyboardType="phone-pad"
                                 />
                             </View>
 

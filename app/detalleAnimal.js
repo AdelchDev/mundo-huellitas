@@ -1,9 +1,31 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View, } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+    ActivityIndicator,
+    Alert,
+    Image,
+    Linking,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
+} from 'react-native';
+import {
+    SafeAreaView,
+    useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { getAnimales } from '../services/animales';
+import {
+    getAnimales,
+    marcarAnimalAdoptado,
+} from '../services/animales';
+import { getCurrentUser } from '../services/authService';
+import {
+    getInfoRefugio,
+    normalizarTelefonoWhatsApp,
+} from '../services/refugios';
+import SelloAdoptado from '../components/selloAdoptado';
 
 const colors = {
     primary: '#795548',
@@ -11,25 +33,48 @@ const colors = {
     background: '#F4E9DF',
     card: '#FFFCF8',
     accent: '#C98276',
+    whatsapp: '#25D366',
+    danger: '#B85C4E',
 };
 
 const DetalleAnimal = () => {
     const { idAnimal } = useLocalSearchParams();
     const router = useRouter();
+    const insets = useSafeAreaInsets();
 
     const [animal, setAnimal] = useState(null);
+    const [refugio, setRefugio] = useState(null);
+    const [esDueno, setEsDueno] = useState(false);
     const [cargando, setCargando] = useState(true);
+    const [marcando, setMarcando] = useState(false);
 
     useEffect(() => {
         const cargarAnimal = async () => {
             try {
-                const animales = await getAnimales();
+                const [animales, usuario] = await Promise.all([
+                    getAnimales(),
+                    getCurrentUser(),
+                ]);
 
                 const animalEncontrado = animales.find(
-                    (animal) => animal.id === Number(idAnimal)
+                    (item) => item.id === Number(idAnimal)
                 );
 
                 setAnimal(animalEncontrado);
+                setEsDueno(
+                    Boolean(
+                        usuario?.id &&
+                            animalEncontrado?.idUsuario === usuario.id
+                    )
+                );
+
+                if (animalEncontrado) {
+                    const info = await getInfoRefugio(
+                        animalEncontrado.idUsuario,
+                        animalEncontrado.nombreRefugio
+                    );
+                    setRefugio(info);
+                }
             } catch (error) {
                 console.log('Error al cargar el animal:', error);
             } finally {
@@ -39,6 +84,76 @@ const DetalleAnimal = () => {
 
         cargarAnimal();
     }, [idAnimal]);
+
+    const handleMarcarAdoptado = () => {
+        if (!animal || !esDueno) return;
+
+        Alert.alert(
+            'Marcar como adoptado',
+            `¿Confirmás que ${animal.nombre} ya fue adoptado?`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Confirmar',
+                    onPress: async () => {
+                        try {
+                            setMarcando(true);
+                            const usuario = await getCurrentUser();
+                            const actualizado = await marcarAnimalAdoptado(
+                                animal.id,
+                                usuario.id
+                            );
+                            setAnimal(actualizado);
+                        } catch (error) {
+                            Alert.alert(
+                                'Error',
+                                error.message ||
+                                    'No se pudo marcar como adoptado.'
+                            );
+                        } finally {
+                            setMarcando(false);
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const contactarWhatsApp = async () => {
+        const telefono = normalizarTelefonoWhatsApp(refugio?.telefono);
+
+        if (!telefono) {
+            Alert.alert(
+                'Sin teléfono',
+                'Este refugio todavía no cargó un número de WhatsApp.'
+            );
+            return;
+        }
+
+        const mensaje = encodeURIComponent(
+            `Hola! Me interesa adoptar a ${animal.nombre}. Vi su publicación en Mundo Huellitas.`
+        );
+        const url = `https://wa.me/${telefono}?text=${mensaje}`;
+
+        try {
+            const soportado = await Linking.canOpenURL(url);
+
+            if (!soportado) {
+                Alert.alert(
+                    'No se pudo abrir WhatsApp',
+                    'Verificá que WhatsApp esté instalado en el dispositivo.'
+                );
+                return;
+            }
+
+            await Linking.openURL(url);
+        } catch (error) {
+            Alert.alert(
+                'Error',
+                'No se pudo abrir el chat de WhatsApp.'
+            );
+        }
+    };
 
     if (cargando) {
         return (
@@ -76,13 +191,18 @@ const DetalleAnimal = () => {
             <Stack.Screen options={{ headerShown: false }} />
 
             <SafeAreaView style={styles.container} edges={['top']}>
-                <ScrollView>
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
                     <View style={styles.imagenContainer}>
                         <Image
                             source={{ uri: animal.imagen }}
                             style={styles.imagen}
                             resizeMode="cover"
                         />
+
+                        <SelloAdoptado visible={animal.adoptado} />
 
                         <Pressable
                             style={styles.botonVolver}
@@ -137,12 +257,75 @@ const DetalleAnimal = () => {
                             </Text>
 
                             <Text style={styles.descripcion}>
-                                Este animal pertenece al refugio que realizó
-                                la publicación.
+                                Publicado por{' '}
+                                <Text style={styles.refugioNombre}>
+                                    {refugio?.nombre ||
+                                        animal.nombreRefugio ||
+                                        'Refugio'}
+                                </Text>
+                                .
+                            </Text>
+
+                            <Text style={styles.publicaciones}>
+                                {refugio?.cantidadPublicaciones ??
+                                    animal.cantidadPublicaciones ??
+                                    0}{' '}
+                                {(refugio?.cantidadPublicaciones ??
+                                    animal.cantidadPublicaciones ??
+                                    0) === 1
+                                    ? 'publicación'
+                                    : 'publicaciones'}{' '}
+                                activas
                             </Text>
                         </View>
                     </View>
                 </ScrollView>
+
+                <View
+                    style={[
+                        styles.footer,
+                        { paddingBottom: Math.max(insets.bottom, 12) + 8 },
+                    ]}
+                >
+                    {esDueno && !animal.adoptado ? (
+                        <Pressable
+                            style={[
+                                styles.adoptadoButton,
+                                marcando && styles.buttonDisabled,
+                            ]}
+                            onPress={handleMarcarAdoptado}
+                            disabled={marcando}
+                        >
+                            {marcando ? (
+                                <ActivityIndicator color="#FFFFFF" />
+                            ) : (
+                                <Text style={styles.adoptadoButtonText}>
+                                    Marcar como adoptado
+                                </Text>
+                            )}
+                        </Pressable>
+                    ) : null}
+
+                    {!animal.adoptado ? (
+                        <Pressable
+                            style={styles.whatsappButton}
+                            onPress={contactarWhatsApp}
+                        >
+                            <Ionicons
+                                name="logo-whatsapp"
+                                size={22}
+                                color="#FFFFFF"
+                            />
+                            <Text style={styles.whatsappText}>
+                                Contactar por WhatsApp
+                            </Text>
+                        </Pressable>
+                    ) : (
+                        <Text style={styles.adoptadoMensaje}>
+                            Esta mascota ya fue adoptada.
+                        </Text>
+                    )}
+                </View>
             </SafeAreaView>
         </>
     );
@@ -170,22 +353,30 @@ const styles = StyleSheet.create({
         marginTop: 16,
     },
     imagenContainer: {
+        height: 300,
+        width: '100%',
         position: 'relative',
+        overflow: 'hidden',
+        backgroundColor: colors.background,
     },
     imagen: {
         width: '100%',
-        height: 300,
+        height: '100%',
     },
     botonVolver: {
         position: 'absolute',
         top: 50,
         left: 20,
+        zIndex: 3,
         backgroundColor: colors.card,
         width: 42,
         height: 42,
         borderRadius: 21,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    scrollContent: {
+        paddingBottom: 16,
     },
     content: {
         padding: 20,
@@ -227,6 +418,60 @@ const styles = StyleSheet.create({
         fontSize: 15,
         color: colors.secondary,
         lineHeight: 23,
+    },
+    refugioNombre: {
+        fontWeight: 'bold',
+        color: colors.primary,
+    },
+    publicaciones: {
+        marginTop: 8,
+        fontSize: 14,
+        color: colors.secondary,
+    },
+    footer: {
+        backgroundColor: colors.background,
+        paddingHorizontal: 16,
+        paddingTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#E8DCD1',
+        gap: 10,
+    },
+    adoptadoButton: {
+        backgroundColor: colors.danger,
+        borderRadius: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        alignItems: 'center',
+    },
+    adoptadoButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    buttonDisabled: {
+        opacity: 0.7,
+    },
+    whatsappButton: {
+        backgroundColor: colors.whatsapp,
+        borderRadius: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+    },
+    whatsappText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    adoptadoMensaje: {
+        textAlign: 'center',
+        color: colors.secondary,
+        fontSize: 14,
+        fontWeight: '600',
+        paddingVertical: 8,
     },
 });
 
