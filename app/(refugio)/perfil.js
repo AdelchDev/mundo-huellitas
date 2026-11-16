@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import {
+    clearAllLocalData,
     getCurrentUser,
     logoutUser,
     updateCurrentUser,
@@ -22,6 +23,9 @@ import {
 import { actualizarDatosRefugio as actualizarAnimalesRefugio } from '../../services/animales';
 import { actualizarDatosRefugio as actualizarPosteosRefugio } from '../../services/posteos';
 import { validarTelefono } from '../../services/refugios';
+import { resolverCoordenadas } from '../../services/ubicacion';
+import DireccionAutocomplete from '../../components/direccionAutocomplete';
+import MapaRefugio from '../../components/mapaRefugio';
 
 const colors = {
     primary: '#795548',
@@ -40,6 +44,8 @@ export default function PerfilRefugio() {
     const [telefono, setTelefono] = useState('');
     const [email, setEmail] = useState('');
     const [direccion, setDireccion] = useState('');
+    const [latitude, setLatitude] = useState(null);
+    const [longitude, setLongitude] = useState(null);
     const [cargando, setCargando] = useState(true);
     const [guardando, setGuardando] = useState(false);
 
@@ -63,6 +69,16 @@ export default function PerfilRefugio() {
                     setTelefono(usuario.telefono || '');
                     setEmail(usuario.email || '');
                     setDireccion(usuario.direccion || '');
+                    setLatitude(
+                        typeof usuario.latitude === 'number'
+                            ? usuario.latitude
+                            : null
+                    );
+                    setLongitude(
+                        typeof usuario.longitude === 'number'
+                            ? usuario.longitude
+                            : null
+                    );
                 } catch (error) {
                     console.log('Error al cargar perfil:', error);
                 } finally {
@@ -94,13 +110,41 @@ export default function PerfilRefugio() {
             return;
         }
 
+        if (!direccion.trim()) {
+            Alert.alert(
+                'Dirección requerida',
+                'Elegí una dirección o localidad de la lista de sugerencias.'
+            );
+            return;
+        }
+
         try {
             setGuardando(true);
+
+            let coords = {
+                latitude,
+                longitude,
+                direccion: direccion.trim(),
+            };
+
+            if (
+                typeof coords.latitude !== 'number' ||
+                typeof coords.longitude !== 'number'
+            ) {
+                coords = await resolverCoordenadas({
+                    label: direccion.trim(),
+                });
+                setLatitude(coords.latitude);
+                setLongitude(coords.longitude);
+                setDireccion(coords.direccion);
+            }
 
             const result = await updateCurrentUser({
                 nombre: nombre.trim(),
                 telefono: telefono.trim(),
-                direccion: direccion.trim(),
+                direccion: coords.direccion,
+                latitude: coords.latitude,
+                longitude: coords.longitude,
             });
 
             const usuarioActualizado = result?.user || {
@@ -118,7 +162,10 @@ export default function PerfilRefugio() {
                 actualizarPosteosRefugio(usuarioActualizado.id, datosRefugio);
             }
 
-            Alert.alert('Perfil actualizado', 'Los cambios se guardaron correctamente.');
+            Alert.alert(
+                'Perfil actualizado',
+                'Dirección y coordenadas guardadas correctamente.'
+            );
         } catch (error) {
             Alert.alert(
                 'Error',
@@ -126,6 +173,20 @@ export default function PerfilRefugio() {
             );
         } finally {
             setGuardando(false);
+        }
+    };
+
+    const handleSeleccionarDireccion = async (sugerencia) => {
+        try {
+            const coords = await resolverCoordenadas(sugerencia);
+            setDireccion(coords.direccion);
+            setLatitude(coords.latitude);
+            setLongitude(coords.longitude);
+        } catch (error) {
+            Alert.alert(
+                'Ubicación',
+                error.message || 'No se pudieron obtener las coordenadas.'
+            );
         }
     };
 
@@ -141,6 +202,24 @@ export default function PerfilRefugio() {
                     onPress: async () => {
                         await logoutUser();
                         router.replace('/login');
+                    },
+                },
+            ]
+        );
+    };
+
+    const handleBorrarDatosLocales = () => {
+        Alert.alert(
+            'Borrar datos locales',
+            'Esto limpia sesión y usuarios mock guardados en el celular. No lo hace `npx expo start -c`.',
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Borrar todo',
+                    style: 'destructive',
+                    onPress: async () => {
+                        await clearAllLocalData();
+                        router.replace('/register');
                     },
                 },
             ]
@@ -187,13 +266,13 @@ export default function PerfilRefugio() {
                             style={styles.input}
                             value={telefono}
                             onChangeText={setTelefono}
-                            placeholder="Más de 8 dígitos (ej: 5491123456789)"
+                            placeholder="5491123456789"
                             placeholderTextColor="#B5A69B"
                             keyboardType="phone-pad"
                         />
                         <Text style={styles.hint}>
-                            Debe tener más de 8 dígitos. Usá código de país sin +
-                            ni espacios (ej. 54911...).
+                            Más de 8 dígitos, con código de país, sin + ni
+                            espacios.
                         </Text>
 
                         <Text style={styles.label}>Email</Text>
@@ -204,13 +283,31 @@ export default function PerfilRefugio() {
                         />
 
                         <Text style={styles.label}>Dirección / Localidad</Text>
-                        <TextInput
-                            style={styles.input}
+                        <DireccionAutocomplete
                             value={direccion}
-                            onChangeText={setDireccion}
-                            placeholder="Barrio, ciudad..."
-                            placeholderTextColor="#B5A69B"
+                            onChangeText={(texto) => {
+                                setDireccion(texto);
+                                setLatitude(null);
+                                setLongitude(null);
+                            }}
+                            onSeleccionar={handleSeleccionarDireccion}
                         />
+
+                        {typeof latitude === 'number' &&
+                        typeof longitude === 'number' ? (
+                            <View style={styles.mapaPreview}>
+                                <Text style={styles.coords}>
+                                    Lat: {latitude.toFixed(5)} · Lng:{' '}
+                                    {longitude.toFixed(5)}
+                                </Text>
+                                <MapaRefugio
+                                    latitude={latitude}
+                                    longitude={longitude}
+                                    nombre={nombre || 'Tu refugio'}
+                                    height={150}
+                                />
+                            </View>
+                        ) : null}
 
                         <Pressable
                             style={[
@@ -234,6 +331,15 @@ export default function PerfilRefugio() {
                             onPress={handleLogout}
                         >
                             <Text style={styles.logoutText}>Cerrar sesión</Text>
+                        </Pressable>
+
+                        <Pressable
+                            style={styles.clearButton}
+                            onPress={handleBorrarDatosLocales}
+                        >
+                            <Text style={styles.clearText}>
+                                Borrar datos locales (caché mock)
+                            </Text>
                         </Pressable>
                     </View>
                 </ScrollView>
@@ -283,6 +389,8 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: 16,
         elevation: 2,
+        overflow: 'visible',
+        zIndex: 1,
     },
     label: {
         fontSize: 14,
@@ -309,6 +417,15 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: colors.secondary,
         marginTop: 6,
+    },
+    mapaPreview: {
+        marginTop: 14,
+        gap: 8,
+    },
+    coords: {
+        fontSize: 12,
+        color: colors.secondary,
+        textAlign: 'center',
     },
     button: {
         backgroundColor: colors.primary,
@@ -338,5 +455,15 @@ const styles = StyleSheet.create({
         color: colors.danger,
         fontSize: 16,
         fontWeight: 'bold',
+    },
+    clearButton: {
+        marginTop: 12,
+        paddingVertical: 12,
+        alignItems: 'center',
+    },
+    clearText: {
+        color: colors.secondary,
+        fontSize: 13,
+        textDecorationLine: 'underline',
     },
 });

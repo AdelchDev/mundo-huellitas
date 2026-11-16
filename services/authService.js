@@ -126,6 +126,11 @@ export async function getUserById(idUsuario) {
     );
 }
 
+export async function getUsuariosMock() {
+    const users = await getMockUsers();
+    return Object.values(users);
+}
+
 export async function updateCurrentUser(partial) {
     const current = await getCurrentUser();
 
@@ -158,8 +163,18 @@ export async function updateCurrentUser(partial) {
     return { token: data.token, user };
 }
 
-// Cerrar sesión
+// Cerrar sesión (solo token + usuario actual)
 export async function logoutUser() {
     await SecureStore.deleteItemAsync("authToken");
     await SecureStore.deleteItemAsync(AUTH_USER_KEY);
+}
+
+/**
+ * Borra TODO el almacenamiento local mock (sesión + usuarios guardados).
+ * Útil en desarrollo: `npx expo start -c` NO limpia SecureStore del celular.
+ */
+export async function clearAllLocalData() {
+    await SecureStore.deleteItemAsync("authToken");
+    await SecureStore.deleteItemAsync(AUTH_USER_KEY);
+    await SecureStore.deleteItemAsync(MOCK_USERS_KEY);
 }

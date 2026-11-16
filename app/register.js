@@ -231,13 +231,17 @@ const Registro = () => {
 
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Más de 8 dígitos (ej: 5491123456789)"
+                                    placeholder="5491123456789"
                                     placeholderTextColor="#B5A69B"
                                     value={telefono}
                                     onChangeText={setTelefono}
                                     keyboardType="phone-pad"
                                 />
                             </View>
+                            <Text style={styles.hintTelefono}>
+                                Debe tener más de 8 dígitos (con código de país,
+                                sin + ni espacios).
+                            </Text>
 
                             {/* Contraseña */}
                             <Text style={styles.label}>Contraseña</Text>
@@ -504,6 +508,12 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 14,
         color: colors.primary,
+    },
+    hintTelefono: {
+        fontSize: 12,
+        color: colors.secondary,
+        marginTop: 8,
+        lineHeight: 17,
     },
     rolesContainer: {
         flexDirection: 'row',

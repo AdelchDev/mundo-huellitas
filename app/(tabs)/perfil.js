@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import {
+    clearAllLocalData,
     getCurrentUser,
     logoutUser,
     updateCurrentUser,
@@ -128,6 +129,24 @@ export default function PerfilAdoptante() {
         );
     };
 
+    const handleBorrarDatosLocales = () => {
+        Alert.alert(
+            'Borrar datos locales',
+            'Esto limpia sesión y usuarios mock del celular. `npx expo start -c` no borra eso.',
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Borrar todo',
+                    style: 'destructive',
+                    onPress: async () => {
+                        await clearAllLocalData();
+                        router.replace('/register');
+                    },
+                },
+            ]
+        );
+    };
+
     if (cargando) {
         return (
             <SafeAreaView style={styles.centrado}>
@@ -168,7 +187,7 @@ export default function PerfilAdoptante() {
                             style={styles.input}
                             value={telefono}
                             onChangeText={setTelefono}
-                            placeholder="Opcional — más de 8 dígitos"
+                            placeholder="5491123456789"
                             placeholderTextColor="#B5A69B"
                             keyboardType="phone-pad"
                         />
@@ -202,6 +221,15 @@ export default function PerfilAdoptante() {
                             onPress={handleLogout}
                         >
                             <Text style={styles.logoutText}>Cerrar sesión</Text>
+                        </Pressable>
+
+                        <Pressable
+                            style={styles.clearButton}
+                            onPress={handleBorrarDatosLocales}
+                        >
+                            <Text style={styles.clearText}>
+                                Borrar datos locales (caché mock)
+                            </Text>
                         </Pressable>
                     </View>
                 </ScrollView>
@@ -301,5 +329,15 @@ const styles = StyleSheet.create({
         color: colors.danger,
         fontSize: 16,
         fontWeight: 'bold',
+    },
+    clearButton: {
+        marginTop: 12,
+        paddingVertical: 12,
+        alignItems: 'center',
+    },
+    clearText: {
+        color: colors.secondary,
+        fontSize: 13,
+        textDecorationLine: 'underline',
     },
 });

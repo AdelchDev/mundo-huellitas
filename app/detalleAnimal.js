@@ -26,6 +26,7 @@ import {
     normalizarTelefonoWhatsApp,
 } from '../services/refugios';
 import SelloAdoptado from '../components/selloAdoptado';
+import MapaRefugio from '../components/mapaRefugio';
 
 const colors = {
     primary: '#795548',
@@ -277,6 +278,20 @@ const DetalleAnimal = () => {
                                     : 'publicaciones'}{' '}
                                 activas
                             </Text>
+
+                            <View style={styles.mapaSeccion}>
+                                <Text style={styles.tituloSeccion}>
+                                    Ubicación
+                                </Text>
+                                <MapaRefugio
+                                    latitude={refugio?.latitude}
+                                    longitude={refugio?.longitude}
+                                    nombre={
+                                        refugio?.nombre ||
+                                        animal.nombreRefugio
+                                    }
+                                />
+                            </View>
                         </View>
                     </View>
                 </ScrollView>
@@ -427,6 +442,10 @@ const styles = StyleSheet.create({
         marginTop: 8,
         fontSize: 14,
         color: colors.secondary,
+    },
+    mapaSeccion: {
+        marginTop: 20,
+        gap: 10,
     },
     footer: {
         backgroundColor: colors.background,

@@ -30,6 +30,12 @@
         {
           "photosPermission": "Permití acceder a tus fotos para publicar mascotas."
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Permití acceder a tu ubicación para ver refugios cercanos en el mapa."
+        }
       ]
     ]
   }
