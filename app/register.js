@@ -104,9 +104,9 @@ const Registro = () => {
             });
 
             const destino =
-                result?.user?.rol === 'refugio'
-                    ? '/(refugio)/mis-posteos'
-                    : '/(tabs)/posteos';
+                rol === 'refugio'
+                ? '/(refugio)/mis-posteos'
+                : '/(tabs)/posteos';
 
             Alert.alert(
                 '¡Cuenta creada!',
