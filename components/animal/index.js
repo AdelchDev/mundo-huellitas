@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFavoritos } from '../../context/favoritosContext';
-import { apiRequest } from "../../services/api";
+import SelloAdoptado from '../selloAdoptado';
 
 const colors = {
     card: '#FFFCF8',
@@ -33,6 +33,8 @@ const Animal = ({ animal }) => {
                     style={styles.image}
                     resizeMode="cover"
                 />
+
+                <SelloAdoptado visible={animal.adoptado} compact />
 
                 <Pressable
                     style={styles.fav}
@@ -93,6 +95,10 @@ const styles = StyleSheet.create({
     },
     hero: {
         height: 190,
+        width: '100%',
+        overflow: 'hidden',
+        position: 'relative',
+        backgroundColor: colors.background,
     },
     image: {
         width: '100%',

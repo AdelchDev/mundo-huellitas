@@ -15,6 +15,12 @@ const getIcon = (routeName, color, size) => {
         case 'favoritos':
             return <Ionicons name="heart-outline" size={size} color={color} />;
 
+        case 'mapa':
+            return <Ionicons name="map-outline" size={size} color={color} />;
+
+        case 'perfil':
+            return <Ionicons name="person-outline" size={size} color={color} />;
+
         default:
             return null;
     }
@@ -50,6 +56,16 @@ export default function TabsLayout() {
             <Tabs.Screen
                 name="favoritos"
                 options={{ title: 'Favoritos' }}
+            />
+
+            <Tabs.Screen
+                name="mapa"
+                options={{ title: 'Mapa' }}
+            />
+
+            <Tabs.Screen
+                name="perfil"
+                options={{ title: 'Perfil' }}
             />
         </Tabs>
     );

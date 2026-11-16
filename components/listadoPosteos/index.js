@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState } from 'react';
 import { FlatList, TextInput, Text, View, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import Posteo from '../posteo';
 import { getPosteos } from '../../services/posteos';
 import { getAnimales } from '../../services/animales';
-import { apiRequest } from "../../services/api";
 
 const ListadoPosteos = () => {
     const [posteos, setPosteos] = useState([]);
@@ -14,21 +14,25 @@ const ListadoPosteos = () => {
     const [edadSeleccionada, setEdadSeleccionada] = useState('Todas');
     const [sexoSeleccionado, setSexoSeleccionado] = useState('Todos');
 
-    useEffect(() => {
-        getPosteos().then(posteos => {
-            setPosteos(posteos);
-        })
-        .catch(error => {
-            console.log('Error al obtener posteos:', error);
-        });
+    useFocusEffect(
+        useCallback(() => {
+            let activo = true;
 
-        getAnimales().then(animales => {
-            setAnimales(animales);
-        })
-        .catch(error => {
-            console.log('Error al obtener animales:', error);
-        });
-    }, []);
+            Promise.all([getPosteos(), getAnimales()])
+                .then(([posteosData, animalesData]) => {
+                    if (!activo) return;
+                    setPosteos(posteosData);
+                    setAnimales(animalesData);
+                })
+                .catch((error) => {
+                    console.log('Error al obtener posteos/animales:', error);
+                });
+
+            return () => {
+                activo = false;
+            };
+        }, [])
+    );
 
     const posteosFiltrados = posteos.filter(posteo => {
         const animal = animales.find(

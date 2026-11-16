@@ -1,4 +1,12 @@
+import { agregarAnimal, actualizarCantidadPublicaciones } from './animales';
+
 const MAX_POSTEOS = 5;
+
+const REFUGIO_MOCK = {
+    idUsuario: 'refugio1',
+    nombreRefugio: 'Refugio Patitas Felices',
+    cantidadPublicaciones: 5,
+};
 
 const publicaciones = [
     {
@@ -33,30 +41,94 @@ const publicaciones = [
     }
 ];
 
-const crearPosteo = (index) => {
+const crearPosteoMock = (index) => {
     const publicacion = publicaciones[index % publicaciones.length];
 
     return {
         id: index + 1,
         idAnimal: index + 1,
-        idUsuario: 'refugio1',
-        ...publicacion
+        ...REFUGIO_MOCK,
+        ...publicacion,
     };
 };
 
-const posteos = Array.from(
+let posteos = Array.from(
     { length: MAX_POSTEOS },
-    (_, index) => crearPosteo(index)
+    (_, index) => crearPosteoMock(index)
 );
+
+let nextPosteoId = MAX_POSTEOS + 1;
 
 const getPosteos = () => {
     // TODO: Implementar la logica para obtener los posteos desde una API.
-    // Por ahora, devolvemos los posteos hardcodeados.
     return new Promise((resolve) => {
         setTimeout(() => {
-            resolve(posteos);
-        }, 1000);
+            resolve([...posteos]);
+        }, 300);
     });
 };
 
-export { getPosteos };
+/**
+ * Crea animal + posteo asociados al refugio logueado (mock en memoria).
+ */
+const crearPosteo = async ({
+    idUsuario,
+    nombreRefugio,
+    nombre,
+    especie,
+    raza,
+    edad,
+    sexo,
+    descripcion,
+    imagen,
+}) => {
+    const cantidadPublicaciones =
+        posteos.filter((posteo) => posteo.idUsuario === idUsuario).length + 1;
+
+    const animal = await agregarAnimal({
+        nombre,
+        especie,
+        raza,
+        edad,
+        sexo,
+        descripcion,
+        imagen,
+        idUsuario,
+        nombreRefugio,
+        cantidadPublicaciones,
+    });
+
+    const hoy = new Date();
+    const fecha = hoy.toLocaleDateString('es-AR');
+
+    const posteo = {
+        id: nextPosteoId++,
+        idAnimal: animal.id,
+        idUsuario,
+        nombreRefugio,
+        cantidadPublicaciones,
+        titulo: `${nombre} busca una familia`,
+        texto: descripcion,
+        imagen,
+        fecha,
+    };
+
+    posteos = [posteo, ...posteos];
+    actualizarCantidadPublicaciones(idUsuario, cantidadPublicaciones);
+
+    return { posteo, animal };
+};
+
+const actualizarDatosRefugio = (idUsuario, datos) => {
+    posteos = posteos.map((posteo) =>
+        posteo.idUsuario === idUsuario
+            ? {
+                  ...posteo,
+                  nombreRefugio: datos.nombreRefugio ?? posteo.nombreRefugio,
+                  telefono: datos.telefono ?? posteo.telefono,
+              }
+            : posteo
+    );
+};
+
+export { getPosteos, crearPosteo, actualizarDatosRefugio };

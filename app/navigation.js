@@ -6,6 +6,7 @@ export default function Navigation() {
             <Stack.Screen name="index" />
             <Stack.Screen name="register" />
             <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="(refugio)" />
         </Stack>
     );
 }
