@@ -46,13 +46,17 @@ const Login = () => {
         try {
             setCargando(true);
 
-            await loginUser({
+            const result = await loginUser({
                 email: email.trim().toLowerCase(),
                 password,
             });
 
             // El servicio ya guarda el token de autenticación.
-            router.replace('/(tabs)/posteos');
+            router.replace(
+                result?.user?.rol === 'refugio'
+                    ? '/(refugio)/mis-posteos'
+                    : '/(tabs)/posteos'
+            );
 
         } catch (error) {
             Alert.alert(

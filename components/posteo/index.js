@@ -3,7 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFavoritos } from '../../context/favoritosContext';
 import { useRouter } from 'expo-router';
-import { apiRequest } from "../../services/api";
+import SelloAdoptado from '../selloAdoptado';
 
 const colors = {
     card: '#FFFCF8',
@@ -40,12 +40,13 @@ const Posteo = ({ posteo, animal }) => {
     return (
         <View style={styles.card}>
             {posteo.imagen ? (
-                <Pressable onPress={abrirDetalle}>
+                <Pressable onPress={abrirDetalle} style={styles.imageWrap}>
                     <Image
                         source={{ uri: posteo.imagen }}
                         style={styles.image}
                         resizeMode="cover"
                     />
+                    <SelloAdoptado visible={animal?.adoptado} compact />
                 </Pressable>
             ) : null}
 
@@ -90,6 +91,21 @@ const Posteo = ({ posteo, animal }) => {
                             {posteo.texto}
                         </Text>
 
+                        <Text style={styles.refugio}>
+                            {animal.nombreRefugio ||
+                                posteo.nombreRefugio ||
+                                'Refugio'}
+                            {' · '}
+                            {animal.cantidadPublicaciones ??
+                                posteo.cantidadPublicaciones ??
+                                0}{' '}
+                            {(animal.cantidadPublicaciones ??
+                                posteo.cantidadPublicaciones ??
+                                0) === 1
+                                ? 'publicación'
+                                : 'publicaciones'}
+                        </Text>
+
                         <Text style={styles.fecha}>
                             {posteo.fecha}
                         </Text>
@@ -108,9 +124,16 @@ const styles = StyleSheet.create({
         margin: 12,
         elevation: 3,
     },
+    imageWrap: {
+        height: 190,
+        width: '100%',
+        overflow: 'hidden',
+        position: 'relative',
+        backgroundColor: colors.background,
+    },
     image: {
         width: '100%',
-        height: 190,
+        height: '100%',
     },
     content: {
         padding: 16,
@@ -159,10 +182,16 @@ const styles = StyleSheet.create({
         color: colors.secondary,
         lineHeight: 21,
     },
+    refugio: {
+        fontSize: 13,
+        color: colors.primary,
+        fontWeight: '600',
+        marginTop: 12,
+    },
     fecha: {
         fontSize: 12,
         color: colors.secondary,
-        marginTop: 14,
+        marginTop: 8,
     },
 });
 
