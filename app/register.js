@@ -105,7 +105,7 @@ const Registro = () => {
 
             const destino =
                 rol === 'refugio'
-                ? '/(refugio)/mis-posteos'
+                ? '/(refugio)/posteos'
                 : '/(tabs)/posteos';
 
             Alert.alert(

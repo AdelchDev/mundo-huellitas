@@ -10,7 +10,7 @@ const COLORS = {
 export default function RefugioTabsLayout() {
     return (
         <Tabs
-            initialRouteName="mis-posteos"
+            initialRouteName="posteos"
             screenOptions={{
                 headerShown: false,
                 tabBarActiveTintColor: COLORS.primary,
@@ -28,20 +28,24 @@ export default function RefugioTabsLayout() {
             }}
         >
             <Tabs.Screen
-                name="mis-posteos"
+                name="posteos"
                 options={{
-                    title: 'Mis posteos',
+                    title: 'Posteos',
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="paw-outline" size={size} color={color} />
+                        <Ionicons
+                            name="newspaper-outline"
+                            size={size}
+                            color={color}
+                        />
                     ),
                 }}
             />
             <Tabs.Screen
-                name="nuevo-posteo"
+                name="animales"
                 options={{
-                    title: 'Nuevo',
+                    title: 'Animales',
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="add-circle-outline" size={size} color={color} />
+                        <Ionicons name="paw-outline" size={size} color={color} />
                     ),
                 }}
             />
@@ -50,8 +54,36 @@ export default function RefugioTabsLayout() {
                 options={{
                     title: 'Perfil',
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="person-outline" size={size} color={color} />
+                        <Ionicons
+                            name="person-outline"
+                            size={size}
+                            color={color}
+                        />
                     ),
+                }}
+            />
+
+            {/* Formularios: accesibles por router, ocultos del tab bar */}
+            <Tabs.Screen
+                name="nuevo-posteo"
+                options={{
+                    href: null,
+                    title: 'Nuevo posteo',
+                }}
+            />
+            <Tabs.Screen
+                name="nuevo-animal"
+                options={{
+                    href: null,
+                    title: 'Nuevo animal',
+                }}
+            />
+
+            {/* Legacy: evita warnings si queda el archivo */}
+            <Tabs.Screen
+                name="mis-posteos"
+                options={{
+                    href: null,
                 }}
             />
         </Tabs>
