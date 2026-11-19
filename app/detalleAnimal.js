@@ -17,7 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import {
-    getAnimales,
+    getAnimalById,
     marcarAnimalAdoptado,
 } from '../services/animales';
 import { getCurrentUser } from '../services/authService';
@@ -52,20 +52,17 @@ const DetalleAnimal = () => {
     useEffect(() => {
         const cargarAnimal = async () => {
             try {
-                const [animales, usuario] = await Promise.all([
-                    getAnimales(),
+                const [animalEncontrado, usuario] = await Promise.all([
+                    getAnimalById(String(idAnimal)),
                     getCurrentUser(),
                 ]);
-
-                const animalEncontrado = animales.find(
-                    (item) => item.id === Number(idAnimal)
-                );
 
                 setAnimal(animalEncontrado);
                 setEsDueno(
                     Boolean(
                         usuario?.id &&
-                            animalEncontrado?.idUsuario === usuario.id
+                            String(animalEncontrado?.idUsuario) ===
+                                String(usuario.id)
                     )
                 );
 

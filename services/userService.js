@@ -1,16 +1,18 @@
-import { updateCurrentUser } from "./authService";
-import { apiRequest } from "./api";
+import { getCurrentUser, updateCurrentUser } from './authService';
 
-// Completar / editar perfil de refugio
+/**
+ * Completa / edita perfil de refugio.
+ * Backend: PUT /api/users/profile { ubicacion, telefono }
+ */
 export async function updateRefugioProfile(profileData) {
-    const useMock = process.env.EXPO_PUBLIC_USE_AUTH_MOCK === "true";
-
-    if (useMock) {
-        return updateCurrentUser(profileData);
-    }
-
-    return await apiRequest("/api/users/profile", {
-        method: "PUT",
-        body: JSON.stringify(profileData),
+    return updateCurrentUser({
+        ...profileData,
+        ubicacion: profileData.ubicacion ?? profileData.direccion,
+        direccion: profileData.direccion ?? profileData.ubicacion,
+        telefono: profileData.telefono,
     });
+}
+
+export async function getSessionUser() {
+    return getCurrentUser();
 }

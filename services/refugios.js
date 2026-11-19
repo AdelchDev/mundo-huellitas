@@ -108,8 +108,12 @@ const getInfoRefugio = async (idUsuario, nombreFallback) => {
             usuario?.nombre ||
             nombreFallback ||
             'Refugio',
-        telefono: mock?.telefono || usuario?.telefono || '',
-        ubicacion: mock?.ubicacion || usuario?.direccion || '',
+        telefono: usuario?.telefono || mock?.telefono || '',
+        ubicacion:
+            usuario?.ubicacion ||
+            usuario?.direccion ||
+            mock?.ubicacion ||
+            '',
         latitude:
             usuario?.latitude ??
             mock?.latitude ??
