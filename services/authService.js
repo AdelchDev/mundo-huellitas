@@ -131,16 +131,14 @@ export async function clearAllLocalData() {
     await logoutUser();
 }
 
-/** Compat: ya no hay mock de usuarios en SecureStore */
+/**
+ * Solo puede devolver el usuario de la sesión actual.
+ * El backend no expone GET /api/users/:id.
+ */
 export async function getUserById(idUsuario) {
     const current = await getCurrentUser();
     if (current && normalizeId(current.id) === normalizeId(idUsuario)) {
         return current;
     }
     return null;
-}
-
-export async function getUsuariosMock() {
-    const current = await getCurrentUser();
-    return current ? [current] : [];
 }
