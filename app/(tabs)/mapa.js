@@ -211,7 +211,9 @@ export default function MapaAdoptante() {
                 contentContainerStyle={styles.listaContent}
                 ListEmptyComponent={
                     <Text style={styles.vacio}>
-                        No hay refugios con ubicación cargada.
+                        No hay refugios con ubicación. Cuando un refugio complete
+                        su perfil (dirección) y publique animales, va a aparecer
+                        acá.
                     </Text>
                 }
                 renderItem={({ item }) => {

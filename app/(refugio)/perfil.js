@@ -199,7 +199,7 @@ export default function PerfilRefugio() {
     const handleBorrarDatosLocales = () => {
         Alert.alert(
             'Borrar datos locales',
-            'Esto limpia sesión y usuarios mock guardados en el celular. No lo hace `npx expo start -c`.',
+            'Esto limpia la sesión guardada en el celular. No lo hace `npx expo start -c`.',
             [
                 { text: 'Cancelar', style: 'cancel' },
                 {
