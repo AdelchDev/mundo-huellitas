@@ -1,8 +1,9 @@
 import { getAnimales } from './animales';
-import { getUserById, getUsuariosMock } from './authService';
+import { getCurrentUser, getUserById } from './authService';
+import { normalizeId } from './normalize';
 import { getPosteos } from './posteos';
 
-// Posición por defecto: Obelisco, CABA
+// Centro por defecto solo para la cámara del mapa (no es un refugio fake)
 const UBICACION_DEFAULT = {
     latitude: -34.6037,
     longitude: -58.3816,
@@ -10,55 +11,21 @@ const UBICACION_DEFAULT = {
     longitudeDelta: 0.08,
 };
 
-const REFUGIOS_MOCK = {
-    refugio1: {
-        id: 'refugio1',
-        nombre: 'Refugio Patitas Felices',
-        telefono: '5491155551234',
-        ubicacion: 'Palermo, CABA',
-        latitude: -34.5875,
-        longitude: -58.4200,
-        cantidadPublicaciones: 5,
-    },
-    refugio2: {
-        id: 'refugio2',
-        nombre: 'Huellitas del Norte',
-        telefono: '5491166662345',
-        ubicacion: 'Belgrano, CABA',
-        latitude: -34.5627,
-        longitude: -58.4584,
-        cantidadPublicaciones: 0,
-    },
-    refugio3: {
-        id: 'refugio3',
-        nombre: 'Amor Animal San Telmo',
-        telefono: '5491177773456',
-        ubicacion: 'San Telmo, CABA',
-        latitude: -34.6211,
-        longitude: -58.3731,
-        cantidadPublicaciones: 0,
-    },
-    refugio4: {
-        id: 'refugio4',
-        nombre: 'Refugio Sur Avellaneda',
-        telefono: '5491188884567',
-        ubicacion: 'Avellaneda, GBA',
-        latitude: -34.6627,
-        longitude: -58.3650,
-        cantidadPublicaciones: 0,
-    },
-};
-
 const contarPublicaciones = async (idUsuario) => {
     const posteos = await getPosteos();
-    return posteos.filter((posteo) => posteo.idUsuario === idUsuario).length;
+    const id = normalizeId(idUsuario);
+    return posteos.filter(
+        (posteo) => normalizeId(posteo.idUsuario || posteo.user_id) === id
+    ).length;
 };
 
 const contarAnimalesDisponibles = async (idUsuario) => {
     const animales = await getAnimales();
+    const id = normalizeId(idUsuario);
     return animales.filter(
         (animal) =>
-            animal.idUsuario === idUsuario && !animal.adoptado
+            normalizeId(animal.idUsuario || animal.user_id) === id &&
+            !animal.adoptado
     ).length;
 };
 
@@ -80,6 +47,12 @@ const validarTelefono = (telefono) => {
     return { ok: true, digitos };
 };
 
+/**
+ * Info de un refugio sin datos de prueba.
+ * - Si es el usuario logueado: usa SecureStore (perfil).
+ * - Si no: solo contadores desde API; contacto/coords vacíos
+ *   hasta que el backend exponga listado de refugios.
+ */
 const getInfoRefugio = async (idUsuario, nombreFallback) => {
     if (!idUsuario) {
         return {
@@ -87,60 +60,69 @@ const getInfoRefugio = async (idUsuario, nombreFallback) => {
             nombre: nombreFallback || 'Refugio desconocido',
             telefono: '',
             ubicacion: '',
-            latitude: UBICACION_DEFAULT.latitude,
-            longitude: UBICACION_DEFAULT.longitude,
+            latitude: null,
+            longitude: null,
             cantidadPublicaciones: 0,
             animalesDisponibles: 0,
         };
     }
 
-    const [cantidadPublicaciones, animalesDisponibles] = await Promise.all([
-        contarPublicaciones(idUsuario),
-        contarAnimalesDisponibles(idUsuario),
-    ]);
-    const mock = REFUGIOS_MOCK[idUsuario];
-    const usuario = await getUserById(idUsuario);
+    const id = normalizeId(idUsuario);
+    const [cantidadPublicaciones, animalesDisponibles, usuario] =
+        await Promise.all([
+            contarPublicaciones(id),
+            contarAnimalesDisponibles(id),
+            getUserById(id),
+        ]);
 
     return {
-        id: idUsuario,
-        nombre:
-            mock?.nombre ||
-            usuario?.nombre ||
-            nombreFallback ||
-            'Refugio',
-        telefono: mock?.telefono || usuario?.telefono || '',
-        ubicacion: mock?.ubicacion || usuario?.direccion || '',
+        id,
+        nombre: usuario?.nombre || nombreFallback || 'Refugio',
+        telefono: usuario?.telefono || '',
+        ubicacion: usuario?.ubicacion || usuario?.direccion || '',
         latitude:
-            usuario?.latitude ??
-            mock?.latitude ??
-            UBICACION_DEFAULT.latitude,
+            typeof usuario?.latitude === 'number' ? usuario.latitude : null,
         longitude:
-            usuario?.longitude ??
-            mock?.longitude ??
-            UBICACION_DEFAULT.longitude,
+            typeof usuario?.longitude === 'number' ? usuario.longitude : null,
         cantidadPublicaciones,
         animalesDisponibles,
     };
 };
 
+/**
+ * Refugios para el mapa: IDs reales de animales/posteos del backend.
+ * Solo pins con coordenadas conocidas (perfil del usuario logueado).
+ */
 const getRefugiosParaMapa = async () => {
-    const idsMock = Object.keys(REFUGIOS_MOCK);
-    const usuarios = await getUsuariosMock();
-    const idsUsuarios = usuarios
-        .filter(
-            (user) =>
-                user.rol === 'refugio' &&
-                typeof user.latitude === 'number' &&
-                typeof user.longitude === 'number'
-        )
-        .map((user) => user.id);
+    const [animales, posteos, sesion] = await Promise.all([
+        getAnimales(),
+        getPosteos(),
+        getCurrentUser(),
+    ]);
 
-    const ids = [...new Set([...idsMock, ...idsUsuarios])];
+    const ids = new Set();
+
+    animales.forEach((animal) => {
+        const id = normalizeId(animal.user_id || animal.idUsuario);
+        if (id) ids.add(id);
+    });
+
+    posteos.forEach((posteo) => {
+        const id = normalizeId(posteo.user_id || posteo.idUsuario);
+        if (id) ids.add(id);
+    });
+
+    if (
+        sesion?.rol === 'refugio' &&
+        sesion.id &&
+        typeof sesion.latitude === 'number' &&
+        typeof sesion.longitude === 'number'
+    ) {
+        ids.add(normalizeId(sesion.id));
+    }
 
     const refugios = await Promise.all(
-        ids.map((id) =>
-            getInfoRefugio(id, REFUGIOS_MOCK[id]?.nombre)
-        )
+        [...ids].map((id) => getInfoRefugio(id))
     );
 
     return refugios.filter(
@@ -151,7 +133,6 @@ const getRefugiosParaMapa = async () => {
 };
 
 export {
-    REFUGIOS_MOCK,
     UBICACION_DEFAULT,
     getInfoRefugio,
     getRefugiosParaMapa,

@@ -20,8 +20,6 @@ import {
     logoutUser,
     updateCurrentUser,
 } from '../../services/authService';
-import { actualizarDatosRefugio as actualizarAnimalesRefugio } from '../../services/animales';
-import { actualizarDatosRefugio as actualizarPosteosRefugio } from '../../services/posteos';
 import { validarTelefono } from '../../services/refugios';
 import { resolverCoordenadas } from '../../services/ubicacion';
 import DireccionAutocomplete from '../../components/direccionAutocomplete';
@@ -68,7 +66,9 @@ export default function PerfilRefugio() {
                     setNombre(usuario.nombre || '');
                     setTelefono(usuario.telefono || '');
                     setEmail(usuario.email || '');
-                    setDireccion(usuario.direccion || '');
+                    setDireccion(
+                        usuario.ubicacion || usuario.direccion || ''
+                    );
                     setLatitude(
                         typeof usuario.latitude === 'number'
                             ? usuario.latitude
@@ -139,32 +139,20 @@ export default function PerfilRefugio() {
                 setDireccion(coords.direccion);
             }
 
-            const result = await updateCurrentUser({
+            // Backend PUT /api/users/profile solo persiste ubicacion + telefono.
+            // nombre y coords se guardan en SecureStore para la UI local.
+            await updateCurrentUser({
                 nombre: nombre.trim(),
                 telefono: telefono.trim(),
+                ubicacion: coords.direccion,
                 direccion: coords.direccion,
                 latitude: coords.latitude,
                 longitude: coords.longitude,
             });
 
-            const usuarioActualizado = result?.user || {
-                id: (await getCurrentUser())?.id,
-                nombre: nombre.trim(),
-                telefono: telefono.trim(),
-            };
-
-            if (usuarioActualizado?.id) {
-                const datosRefugio = {
-                    nombreRefugio: usuarioActualizado.nombre,
-                    telefono: usuarioActualizado.telefono,
-                };
-                actualizarAnimalesRefugio(usuarioActualizado.id, datosRefugio);
-                actualizarPosteosRefugio(usuarioActualizado.id, datosRefugio);
-            }
-
             Alert.alert(
                 'Perfil actualizado',
-                'Dirección y coordenadas guardadas correctamente.'
+                'Teléfono y ubicación sincronizados con el backend.'
             );
         } catch (error) {
             Alert.alert(
@@ -211,7 +199,7 @@ export default function PerfilRefugio() {
     const handleBorrarDatosLocales = () => {
         Alert.alert(
             'Borrar datos locales',
-            'Esto limpia sesión y usuarios mock guardados en el celular. No lo hace `npx expo start -c`.',
+            'Esto limpia la sesión guardada en el celular. No lo hace `npx expo start -c`.',
             [
                 { text: 'Cancelar', style: 'cancel' },
                 {
@@ -338,7 +326,7 @@ export default function PerfilRefugio() {
                             onPress={handleBorrarDatosLocales}
                         >
                             <Text style={styles.clearText}>
-                                Borrar datos locales (caché mock)
+                                Borrar sesión local del dispositivo
                             </Text>
                         </Pressable>
                     </View>

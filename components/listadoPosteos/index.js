@@ -36,7 +36,7 @@ const ListadoPosteos = () => {
 
     const posteosFiltrados = posteos.filter(posteo => {
         const animal = animales.find(
-            animal => animal.id === posteo.idAnimal
+            (item) => String(item.id) === String(posteo.idAnimal)
         );
 
         const texto = busqueda.toLowerCase();
@@ -183,7 +183,7 @@ return (
             }
             renderItem={({ item }) => {
                 const animal = animales.find(
-                    animal => animal.id === item.idAnimal
+                    (animal) => String(animal.id) === String(item.idAnimal)
                 );
 
                 return <Posteo posteo={item} animal={animal} />;

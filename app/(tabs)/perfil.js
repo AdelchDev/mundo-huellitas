@@ -132,7 +132,7 @@ export default function PerfilAdoptante() {
     const handleBorrarDatosLocales = () => {
         Alert.alert(
             'Borrar datos locales',
-            'Esto limpia sesión y usuarios mock del celular. `npx expo start -c` no borra eso.',
+            'Esto limpia la sesión guardada en el celular. `npx expo start -c` no borra eso.',
             [
                 { text: 'Cancelar', style: 'cancel' },
                 {
@@ -228,7 +228,7 @@ export default function PerfilAdoptante() {
                             onPress={handleBorrarDatosLocales}
                         >
                             <Text style={styles.clearText}>
-                                Borrar datos locales (caché mock)
+                                Borrar sesión local del dispositivo
                             </Text>
                         </Pressable>
                     </View>

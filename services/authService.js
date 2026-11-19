@@ -1,109 +1,71 @@
-import * as SecureStore from "expo-secure-store";
-import { apiRequest } from "./api";
+import * as SecureStore from 'expo-secure-store';
+import { apiRequest } from './api';
+import { normalizeId, normalizeUser } from './normalize';
 
-const USE_AUTH_MOCK = process.env.EXPO_PUBLIC_USE_AUTH_MOCK === "true";
-const AUTH_USER_KEY = "authUser";
-const MOCK_USERS_KEY = "mockUsers";
+const AUTH_USER_KEY = 'authUser';
 
-async function getMockUsers() {
-    const raw = await SecureStore.getItemAsync(MOCK_USERS_KEY);
-    if (!raw) return {};
+async function persistSession(token, user) {
+    const normalized = normalizeUser(user);
 
-    try {
-        return JSON.parse(raw);
-    } catch {
-        return {};
+    if (token) {
+        await SecureStore.setItemAsync('authToken', token);
     }
+
+    if (normalized) {
+        await SecureStore.setItemAsync(
+            AUTH_USER_KEY,
+            JSON.stringify(normalized)
+        );
+    }
+
+    return { token, user: normalized };
 }
 
-async function saveMockSession(user) {
-    const data = {
-        token: "mock-token",
-        user,
+/**
+ * POST /api/users/register
+ * Backend espera: nombre, email, password, rol
+ * Responde: { message, userId, token } (sin user completo)
+ */
+export async function registerUser(userData) {
+    const payload = {
+        nombre: userData.nombre,
+        email: userData.email.trim().toLowerCase(),
+        password: userData.password,
+        rol: userData.rol || 'adoptante',
     };
 
-    await SecureStore.setItemAsync("authToken", data.token);
-    await SecureStore.setItemAsync(AUTH_USER_KEY, JSON.stringify(user));
-
-    return data;
-}
-
-function crearIdUsuario(rol) {
-    const prefijo = rol === "refugio" ? "refugio" : "adoptante";
-    return `${prefijo}_${Date.now()}`;
-}
-
-// Registrar usuario
-export async function registerUser(userData) {
-    if (USE_AUTH_MOCK) {
-        const email = userData.email.trim().toLowerCase();
-        const rol = userData.rol || "adoptante";
-        const users = await getMockUsers();
-        const existente = users[email];
-
-        const user = {
-            id: existente?.id || crearIdUsuario(rol),
-            nombre: userData.nombre,
-            email,
-            telefono: userData.telefono || "",
-            direccion: userData.direccion || "",
-            rol,
-        };
-
-        users[email] = user;
-        await SecureStore.setItemAsync(MOCK_USERS_KEY, JSON.stringify(users));
-
-        return saveMockSession(user);
-    }
-
-    const data = await apiRequest("/api/users/register", {
-        method: "POST",
-        body: JSON.stringify(userData),
+    const data = await apiRequest('/api/users/register', {
+        method: 'POST',
+        body: JSON.stringify(payload),
     });
 
-    if (data.token) {
-        await SecureStore.setItemAsync("authToken", data.token);
-    }
+    const user = normalizeUser({
+        id: data.userId,
+        nombre: payload.nombre,
+        email: payload.email,
+        rol: payload.rol,
+        telefono: userData.telefono || '',
+        ubicacion: userData.ubicacion || userData.direccion || '',
+        direccion: userData.direccion || userData.ubicacion || '',
+    });
 
-    if (data.user) {
-        await SecureStore.setItemAsync(AUTH_USER_KEY, JSON.stringify(data.user));
-    }
-
-    return data;
+    return persistSession(data.token, user);
 }
 
-// Iniciar sesión
+/**
+ * POST /api/users/login
+ * Responde: { message, user, token }
+ */
 export async function loginUser(credentials) {
-    if (USE_AUTH_MOCK) {
-        const email = credentials.email.trim().toLowerCase();
-        const users = await getMockUsers();
-        const savedUser = users[email];
-
-        const user = savedUser || {
-            id: crearIdUsuario("adoptante"),
-            email,
-            telefono: "",
-            direccion: "",
-            rol: "adoptante",
-        };
-
-        return saveMockSession(user);
-    }
-
-    const data = await apiRequest("/api/users/login", {
-        method: "POST",
-        body: JSON.stringify(credentials),
+    const data = await apiRequest('/api/users/login', {
+        method: 'POST',
+        body: JSON.stringify({
+            email: credentials.email.trim().toLowerCase(),
+            password: credentials.password,
+        }),
     });
 
-    if (data.token) {
-        await SecureStore.setItemAsync("authToken", data.token);
-    }
-
-    if (data.user) {
-        await SecureStore.setItemAsync(AUTH_USER_KEY, JSON.stringify(data.user));
-    }
-
-    return data;
+    return persistSession(data.token, data.user);
 }
 
 export async function getCurrentUser() {
@@ -111,70 +73,72 @@ export async function getCurrentUser() {
     if (!raw) return null;
 
     try {
-        return JSON.parse(raw);
+        return normalizeUser(JSON.parse(raw));
     } catch {
         return null;
     }
 }
 
-export async function getUserById(idUsuario) {
-    if (!idUsuario) return null;
-
-    const users = await getMockUsers();
-    return (
-        Object.values(users).find((user) => user.id === idUsuario) || null
-    );
-}
-
-export async function getUsuariosMock() {
-    const users = await getMockUsers();
-    return Object.values(users);
-}
-
+/**
+ * Actualiza sesión local + perfil de refugio en API si hay ubicacion/telefono.
+ * PUT /api/users/profile solo acepta { ubicacion, telefono } y rol refugio.
+ */
 export async function updateCurrentUser(partial) {
     const current = await getCurrentUser();
 
     if (!current) {
-        throw new Error("No hay una sesión activa.");
+        throw new Error('No hay una sesión activa.');
     }
 
-    const updated = {
+    const ubicacion =
+        partial.ubicacion ?? partial.direccion ?? current.ubicacion ?? '';
+    const telefono = partial.telefono ?? current.telefono ?? '';
+
+    if (current.rol === 'refugio') {
+        if (!ubicacion || !telefono) {
+            throw new Error(
+                'Para guardar el perfil del refugio hace falta ubicación y teléfono.'
+            );
+        }
+
+        await apiRequest('/api/users/profile', {
+            method: 'PUT',
+            body: JSON.stringify({ ubicacion, telefono }),
+        });
+    }
+
+    const updated = normalizeUser({
         ...current,
         ...partial,
-        email: current.email,
         id: current.id,
+        email: current.email,
         rol: current.rol,
-    };
-
-    if (USE_AUTH_MOCK) {
-        const users = await getMockUsers();
-        users[updated.email] = updated;
-        await SecureStore.setItemAsync(MOCK_USERS_KEY, JSON.stringify(users));
-        return saveMockSession(updated);
-    }
-
-    const data = await apiRequest("/api/users/profile", {
-        method: "PUT",
-        body: JSON.stringify(partial),
+        ubicacion,
+        direccion: partial.direccion ?? ubicacion,
+        telefono,
     });
 
-    const user = data.user || { ...current, ...partial };
-    await SecureStore.setItemAsync(AUTH_USER_KEY, JSON.stringify(user));
-    return { token: data.token, user };
+    await SecureStore.setItemAsync(AUTH_USER_KEY, JSON.stringify(updated));
+    return { user: updated };
 }
 
-// Cerrar sesión (solo token + usuario actual)
 export async function logoutUser() {
-    await SecureStore.deleteItemAsync("authToken");
+    await SecureStore.deleteItemAsync('authToken');
     await SecureStore.deleteItemAsync(AUTH_USER_KEY);
+}
+
+export async function clearAllLocalData() {
+    await logoutUser();
 }
 
 /**
- * Borra TODO el almacenamiento local mock (sesión + usuarios guardados).
- * Útil en desarrollo: `npx expo start -c` NO limpia SecureStore del celular.
+ * Solo puede devolver el usuario de la sesión actual.
+ * El backend no expone GET /api/users/:id.
  */
-export async function clearAllLocalData() {
-    await SecureStore.deleteItemAsync("authToken");
-    await SecureStore.deleteItemAsync(AUTH_USER_KEY);
-    await SecureStore.deleteItemAsync(MOCK_USERS_KEY);
+export async function getUserById(idUsuario) {
+    const current = await getCurrentUser();
+    if (current && normalizeId(current.id) === normalizeId(idUsuario)) {
+        return current;
+    }
+    return null;
 }

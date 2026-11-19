@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -14,11 +14,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { useFocusEffect, useRouter } from 'expo-router';
 
-import { getCurrentUser } from '../../services/authService';
+import { getMisAnimales } from '../../services/animales';
 import { crearPosteo } from '../../services/posteos';
+import { getCurrentUser } from '../../services/authService';
 
 const colors = {
     primary: '#795548',
@@ -29,78 +30,114 @@ const colors = {
     accent: '#C98276',
 };
 
-const ESPECIES = ['Perro', 'Gato', 'Roedor'];
-const EDADES = ['Menor de 1 año', '1 a 3 años', 'Más de 3 años'];
-const SEXOS = ['Hembra', 'Macho'];
-
 const IMAGEN_DEFAULT =
-    'https://cdn-icons-png.flaticon.com/512/616/616408.png';
-
-const edadANumero = (etiqueta) => {
-    switch (etiqueta) {
-        case 'Menor de 1 año':
-            return 0;
-        case '1 a 3 años':
-            return 2;
-        case 'Más de 3 años':
-            return 4;
-        default:
-            return 0;
-    }
-};
-
-const Chip = ({ label, selected, onPress }) => (
-    <Pressable
-        onPress={onPress}
-        style={[styles.chip, selected && styles.chipSelected]}
-    >
-        <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-            {label}
-        </Text>
-    </Pressable>
-);
+    'https://images.unsplash.com/photo-1450778869180-41d0601e046e?auto=format&fit=crop&w=800&q=80';
 
 export default function NuevoPosteo() {
     const router = useRouter();
 
-    const [nombre, setNombre] = useState('');
-    const [especie, setEspecie] = useState('Perro');
-    const [raza, setRaza] = useState('');
-    const [edad, setEdad] = useState('');
-    const [sexo, setSexo] = useState('Hembra');
-    const [descripcion, setDescripcion] = useState('');
+    const [animales, setAnimales] = useState([]);
+    const [animalId, setAnimalId] = useState(null);
+    const [titulo, setTitulo] = useState('');
+    const [texto, setTexto] = useState('');
     const [imagenUri, setImagenUri] = useState(null);
+    const [cargandoAnimales, setCargandoAnimales] = useState(true);
     const [publicando, setPublicando] = useState(false);
 
+    useFocusEffect(
+        useCallback(() => {
+            let activo = true;
+
+            const cargar = async () => {
+                try {
+                    setCargandoAnimales(true);
+                    const usuario = await getCurrentUser();
+                    if (!usuario?.id) {
+                        router.replace('/login');
+                        return;
+                    }
+
+                    const lista = await getMisAnimales();
+                    if (!activo) return;
+
+                    setAnimales(lista);
+                    if (lista.length && !animalId) {
+                        setAnimalId(lista[0].id);
+                        if (!titulo.trim()) {
+                            setTitulo(`${lista[0].nombre} busca una familia`);
+                        }
+                        if (!texto.trim() && lista[0].descripcion) {
+                            setTexto(lista[0].descripcion);
+                        }
+                        if (!imagenUri && lista[0].imagen) {
+                            setImagenUri(lista[0].imagen);
+                        }
+                    }
+                } catch (error) {
+                    Alert.alert(
+                        'Error',
+                        error.message || 'No se pudieron cargar los animales.'
+                    );
+                } finally {
+                    if (activo) setCargandoAnimales(false);
+                }
+            };
+
+            cargar();
+            return () => {
+                activo = false;
+            };
+        }, [router])
+    );
+
+    const seleccionarAnimal = (animal) => {
+        setAnimalId(animal.id);
+        setTitulo(`${animal.nombre} busca una familia`);
+        if (animal.descripcion) setTexto(animal.descripcion);
+        if (animal.imagen) setImagenUri(animal.imagen);
+    };
+
     const elegirFoto = async () => {
-        const permission =
-            await ImagePicker.requestMediaLibraryPermissionsAsync();
+        try {
+            const permission =
+                await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-        if (!permission.granted) {
-            Alert.alert(
-                'Permiso requerido',
-                'Necesitamos acceso a tu galería para elegir una foto.'
-            );
-            return;
-        }
+            if (!permission.granted) {
+                Alert.alert(
+                    'Permiso requerido',
+                    'Necesitamos acceso a tu galería.'
+                );
+                return;
+            }
 
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 0.8,
-        });
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'],
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+            });
 
-        if (!result.canceled) {
-            setImagenUri(result.assets[0].uri);
+            if (!result.canceled) {
+                setImagenUri(result.assets[0].uri);
+            }
+        } catch (error) {
+            Alert.alert('Error', 'No se pudo abrir la galería.');
         }
     };
 
     const handlePublicar = async () => {
-        if (!nombre.trim() || !edad || !descripcion.trim()) {
+        if (!animalId) {
+            Alert.alert(
+                'Sin animal',
+                'Primero registrá un animal en la pestaña Animales.'
+            );
+            return;
+        }
+
+        if (!titulo.trim() || !texto.trim()) {
             Alert.alert(
                 'Campos incompletos',
-                'Completá nombre, edad y descripción.'
+                'Completá título y texto del posteo.'
             );
             return;
         }
@@ -108,42 +145,24 @@ export default function NuevoPosteo() {
         try {
             setPublicando(true);
 
-            const usuario = await getCurrentUser();
-
-            if (!usuario?.id) {
-                Alert.alert(
-                    'Sesión requerida',
-                    'No pudimos identificar el refugio. Volvé a iniciar sesión.'
-                );
-                return;
-            }
-
-            const imagen = imagenUri || IMAGEN_DEFAULT;
+            const imagen =
+                imagenUri && /^https?:\/\//i.test(imagenUri)
+                    ? imagenUri
+                    : IMAGEN_DEFAULT;
 
             await crearPosteo({
-                idUsuario: usuario.id,
-                nombreRefugio: usuario.nombre || 'Mi refugio',
-                nombre: nombre.trim(),
-                especie,
-                raza: raza.trim(),
-                edad: edadANumero(edad),
-                sexo,
-                descripcion: descripcion.trim(),
+                titulo: titulo.trim(),
+                texto: texto.trim(),
                 imagen,
+                animal_id: animalId,
             });
 
-            Alert.alert(
-                '¡Mascota publicada!',
-                `${nombre.trim()} ya está disponible para adopción.`,
-                [
-                    {
-                        text: 'Ver mis posteos',
-                        onPress: () => {
-                            router.replace('/(refugio)/mis-posteos');
-                        },
-                    },
-                ]
-            );
+            Alert.alert('¡Posteo publicado!', 'Ya está visible en el feed.', [
+                {
+                    text: 'Ver mis posteos',
+                    onPress: () => router.replace('/(refugio)/posteos'),
+                },
+            ]);
         } catch (error) {
             Alert.alert(
                 'Error al publicar',
@@ -154,6 +173,15 @@ export default function NuevoPosteo() {
         }
     };
 
+    if (cargandoAnimales) {
+        return (
+            <SafeAreaView style={styles.centrado}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.mensaje}>Cargando animales...</Text>
+            </SafeAreaView>
+        );
+    }
+
     return (
         <SafeAreaView edges={['top']} style={styles.container}>
             <KeyboardAvoidingView
@@ -161,136 +189,124 @@ export default function NuevoPosteo() {
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
                 <ScrollView
-                    contentContainerStyle={styles.scrollContent}
+                    contentContainerStyle={styles.content}
                     keyboardShouldPersistTaps="handled"
-                    showsVerticalScrollIndicator={false}
                 >
+                    <Pressable
+                        onPress={() => router.back()}
+                        style={styles.back}
+                    >
+                        <Ionicons
+                            name="arrow-back"
+                            size={22}
+                            color={colors.primary}
+                        />
+                        <Text style={styles.backText}>Volver</Text>
+                    </Pressable>
+
                     <Text style={styles.title}>Nuevo posteo</Text>
                     <Text style={styles.subtitle}>
-                        Cargá los datos de la mascota para publicarla.
+                        Asociá un animal de tu refugio y publicá
                     </Text>
 
-                    <View style={styles.card}>
-                        <Text style={styles.label}>Foto</Text>
-                        <Pressable
-                            style={styles.photoPicker}
-                            onPress={elegirFoto}
-                        >
-                            {imagenUri ? (
-                                <Image
-                                    source={{ uri: imagenUri }}
-                                    style={styles.photoPreview}
-                                    resizeMode="cover"
-                                />
-                            ) : (
-                                <View style={styles.photoPlaceholder}>
-                                    <Ionicons
-                                        name="camera-outline"
-                                        size={36}
-                                        color={colors.primary}
-                                    />
-                                    <Text style={styles.photoPlaceholderText}>
-                                        Elegir foto de la galería
-                                    </Text>
-                                </View>
-                            )}
-                        </Pressable>
-                        {imagenUri ? (
-                            <Pressable onPress={() => setImagenUri(null)}>
-                                <Text style={styles.quitarFoto}>
-                                    Quitar foto
+                    <Text style={styles.label}>Animal asociado</Text>
+                    {animales.length === 0 ? (
+                        <View style={styles.emptyAnimals}>
+                            <Text style={styles.emptyText}>
+                                No tenés animales. Primero dales de alta.
+                            </Text>
+                            <Pressable
+                                style={styles.linkBtn}
+                                onPress={() =>
+                                    router.push('/(refugio)/nuevo-animal')
+                                }
+                            >
+                                <Text style={styles.linkBtnText}>
+                                    Cargar animal
                                 </Text>
                             </Pressable>
+                        </View>
+                    ) : (
+                        <View style={styles.chips}>
+                            {animales.map((animal) => (
+                                <Pressable
+                                    key={animal.id}
+                                    style={[
+                                        styles.chip,
+                                        animalId === animal.id &&
+                                            styles.chipActive,
+                                    ]}
+                                    onPress={() => seleccionarAnimal(animal)}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.chipText,
+                                            animalId === animal.id &&
+                                                styles.chipTextActive,
+                                        ]}
+                                    >
+                                        {animal.nombre}
+                                    </Text>
+                                </Pressable>
+                            ))}
+                        </View>
+                    )}
+
+                    <Pressable style={styles.photoBox} onPress={elegirFoto}>
+                        {imagenUri ? (
+                            <Image
+                                source={{ uri: imagenUri }}
+                                style={styles.photo}
+                            />
                         ) : (
-                            <Text style={styles.hint}>
-                                Si no elegís foto, usamos una imagen por
-                                defecto.
+                            <View style={styles.photoPlaceholder}>
+                                <Ionicons
+                                    name="image-outline"
+                                    size={32}
+                                    color={colors.secondary}
+                                />
+                                <Text style={styles.photoText}>
+                                    Imagen del posteo
+                                </Text>
+                            </View>
+                        )}
+                    </Pressable>
+
+                    <Text style={styles.label}>Título</Text>
+                    <TextInput
+                        style={styles.input}
+                        value={titulo}
+                        onChangeText={setTitulo}
+                        placeholder="Título del posteo"
+                        placeholderTextColor={colors.secondary}
+                    />
+
+                    <Text style={styles.label}>Texto</Text>
+                    <TextInput
+                        style={[styles.input, styles.textArea]}
+                        value={texto}
+                        onChangeText={setTexto}
+                        placeholder="Contá la historia..."
+                        placeholderTextColor={colors.secondary}
+                        multiline
+                    />
+
+                    <Pressable
+                        style={[
+                            styles.submit,
+                            (publicando || !animalId) && styles.submitDisabled,
+                        ]}
+                        onPress={handlePublicar}
+                        disabled={publicando || !animalId}
+                    >
+                        {publicando ? (
+                            <ActivityIndicator color="#FFF" />
+                        ) : (
+                            <Text style={styles.submitText}>
+                                Publicar posteo
                             </Text>
                         )}
-
-                        <Text style={styles.label}>Nombre</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Ej: Luna"
-                            placeholderTextColor="#B5A69B"
-                            value={nombre}
-                            onChangeText={setNombre}
-                        />
-
-                        <Text style={styles.label}>Raza</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Opcional — por defecto: Mestizo"
-                            placeholderTextColor="#B5A69B"
-                            value={raza}
-                            onChangeText={setRaza}
-                            autoCapitalize="words"
-                        />
-
-                        <Text style={styles.label}>Especie</Text>
-                        <View style={styles.chipsRow}>
-                            {ESPECIES.map((opcion) => (
-                                <Chip
-                                    key={opcion}
-                                    label={opcion}
-                                    selected={especie === opcion}
-                                    onPress={() => setEspecie(opcion)}
-                                />
-                            ))}
-                        </View>
-
-                        <Text style={styles.label}>Edad</Text>
-                        <View style={styles.chipsRow}>
-                            {EDADES.map((opcion) => (
-                                <Chip
-                                    key={opcion}
-                                    label={opcion}
-                                    selected={edad === opcion}
-                                    onPress={() => setEdad(opcion)}
-                                />
-                            ))}
-                        </View>
-
-                        <Text style={styles.label}>Sexo</Text>
-                        <View style={styles.chipsRow}>
-                            {SEXOS.map((opcion) => (
-                                <Chip
-                                    key={opcion}
-                                    label={opcion}
-                                    selected={sexo === opcion}
-                                    onPress={() => setSexo(opcion)}
-                                />
-                            ))}
-                        </View>
-
-                        <Text style={styles.label}>Descripción / historia</Text>
-                        <TextInput
-                            style={[styles.input, styles.textArea]}
-                            placeholder="Contá un poco sobre la mascota..."
-                            placeholderTextColor="#B5A69B"
-                            value={descripcion}
-                            onChangeText={setDescripcion}
-                            multiline
-                            textAlignVertical="top"
-                        />
-
-                        <Pressable
-                            style={[
-                                styles.button,
-                                publicando && styles.buttonDisabled,
-                            ]}
-                            onPress={handlePublicar}
-                            disabled={publicando}
-                        >
-                            {publicando ? (
-                                <ActivityIndicator color="#FFFFFF" />
-                            ) : (
-                                <Text style={styles.buttonText}>
-                                    Publicar mascota
-                                </Text>
-                            )}
-                        </Pressable>
-                    </View>
+                    </Pressable>
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -298,126 +314,112 @@ export default function NuevoPosteo() {
 }
 
 const styles = StyleSheet.create({
-    flex: {
-        flex: 1,
-    },
-    container: {
+    flex: { flex: 1 },
+    container: { flex: 1, backgroundColor: colors.background },
+    centrado: {
         flex: 1,
         backgroundColor: colors.background,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
     },
-    scrollContent: {
-        padding: 16,
-        paddingBottom: 40,
+    mensaje: { color: colors.secondary, fontSize: 16 },
+    content: { padding: 16, paddingBottom: 40 },
+    back: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 8,
     },
+    backText: { color: colors.primary, fontWeight: '600' },
     title: {
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: 'bold',
         color: colors.primary,
         textAlign: 'center',
-        marginBottom: 8,
     },
     subtitle: {
-        fontSize: 14,
+        fontSize: 13,
         color: colors.secondary,
         textAlign: 'center',
         marginBottom: 16,
-    },
-    card: {
-        backgroundColor: colors.card,
-        borderRadius: 16,
-        padding: 16,
-        elevation: 2,
+        marginTop: 4,
     },
     label: {
         fontSize: 14,
         fontWeight: '600',
         color: colors.primary,
-        marginBottom: 8,
-        marginTop: 12,
+        marginBottom: 6,
+        marginTop: 8,
     },
-    photoPicker: {
+    emptyAnimals: {
+        backgroundColor: colors.card,
         borderRadius: 12,
-        overflow: 'hidden',
+        padding: 14,
         borderWidth: 1,
         borderColor: colors.soft,
-        backgroundColor: '#FFFFFF',
+        gap: 10,
+        marginBottom: 8,
     },
-    photoPreview: {
-        width: '100%',
+    emptyText: { color: colors.secondary, fontSize: 14 },
+    linkBtn: {
+        alignSelf: 'flex-start',
+        backgroundColor: colors.primary,
+        borderRadius: 10,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    linkBtnText: { color: '#FFF', fontWeight: '600' },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+    chip: {
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 16,
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: colors.soft,
+    },
+    chipActive: {
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
+    },
+    chipText: { color: colors.secondary, fontSize: 13 },
+    chipTextActive: { color: '#FFF', fontWeight: '600' },
+    photoBox: {
         height: 180,
+        borderRadius: 16,
+        overflow: 'hidden',
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: colors.soft,
+        marginVertical: 8,
     },
+    photo: { width: '100%', height: '100%' },
     photoPlaceholder: {
-        height: 180,
+        flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 10,
-        backgroundColor: colors.background,
+        gap: 8,
     },
-    photoPlaceholderText: {
-        color: colors.primary,
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    quitarFoto: {
-        marginTop: 8,
-        color: colors.accent,
-        fontSize: 13,
-        fontWeight: '600',
-    },
+    photoText: { color: colors.secondary },
     input: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.card,
         borderWidth: 1,
         borderColor: colors.soft,
         borderRadius: 12,
         paddingHorizontal: 14,
         paddingVertical: 12,
-        fontSize: 15,
         color: colors.primary,
+        marginBottom: 4,
     },
-    textArea: {
-        minHeight: 110,
-        paddingTop: 12,
-    },
-    hint: {
-        fontSize: 12,
-        color: colors.secondary,
-        marginTop: 6,
-    },
-    chipsRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    chip: {
-        backgroundColor: colors.soft,
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-        borderRadius: 20,
-    },
-    chipSelected: {
+    textArea: { minHeight: 110, textAlignVertical: 'top' },
+    submit: {
+        marginTop: 20,
         backgroundColor: colors.primary,
-    },
-    chipText: {
-        color: colors.primary,
-        fontSize: 13,
-        fontWeight: '500',
-    },
-    chipTextSelected: {
-        color: '#FFFFFF',
-    },
-    button: {
-        backgroundColor: colors.primary,
-        borderRadius: 12,
-        paddingVertical: 16,
+        borderRadius: 14,
+        paddingVertical: 14,
         alignItems: 'center',
-        marginTop: 24,
     },
-    buttonDisabled: {
-        opacity: 0.7,
-    },
-    buttonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
+    submitDisabled: { opacity: 0.7 },
+    submitText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
 });

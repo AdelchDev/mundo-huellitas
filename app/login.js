@@ -54,7 +54,7 @@ const Login = () => {
             // El servicio ya guarda el token de autenticación.
             router.replace(
                 result?.user?.rol === 'refugio'
-                    ? '/(refugio)/mis-posteos'
+                    ? '/(refugio)/posteos'
                     : '/(tabs)/posteos'
             );
 
