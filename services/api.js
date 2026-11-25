@@ -10,9 +10,17 @@ export async function apiRequest(endpoint, options = {}) {
     const token = await SecureStore.getItemAsync('authToken');
 
     const headers = {
-        'Content-Type': 'application/json',
         ...options.headers,
     };
+
+    // Si no se indicó un Content-Type, usamos JSON
+    // para las solicitudes que envían un body de texto.
+    if (
+        typeof options.body === 'string' &&
+        !headers['Content-Type']
+    ) {
+        headers['Content-Type'] = 'application/json';
+    }
 
     if (token) {
         headers.Authorization = `Bearer ${token}`;

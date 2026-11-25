@@ -15,7 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { actualizarPosteo, getPosteoById } from '../../services/posteos';
-import { subirFoto } from '../../services/imagenes';
+import { subirImagen } from '../../services/imagenes';
 import FormularioScroll from '../../components/formularioScroll';
 
 const colors = {
@@ -102,7 +102,7 @@ export default function EditarPosteo() {
         try {
             setGuardando(true);
             const urlFoto = fotoLocal
-                ? await subirFoto(fotoLocal, mimeFoto)
+                ? await subirImagen(fotoLocal, mimeFoto)
                 : imagen;
 
             await actualizarPosteo(posteoId, {

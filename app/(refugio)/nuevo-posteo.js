@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 
 import { crearAnimal } from '../../services/animales';
 import { crearPosteo } from '../../services/posteos';
-import { subirFoto } from '../../services/imagenes';
+import { subirImagen } from '../../services/imagenes';
 import { getCurrentUser } from '../../services/authService';
 import FormularioScroll from '../../components/formularioScroll';
 
@@ -62,7 +62,7 @@ export default function NuevoPosteo() {
     const [sexo, setSexo] = useState('Hembra');
     const [descripcion, setDescripcion] = useState('');
     const [imagenUri, setImagenUri] = useState(null);
-    const [mimeFoto, setMimeFoto] = useState('image/jpeg');
+    const [imagenMimeType, setImagenMimeType] = useState(null);
     const [publicando, setPublicando] = useState(false);
 
     const elegirFoto = async () => {
@@ -88,7 +88,7 @@ export default function NuevoPosteo() {
             if (!result.canceled) {
                 const asset = result.assets[0];
                 setImagenUri(asset.uri);
-                setMimeFoto(asset.mimeType || 'image/jpeg');
+                setImagenMimeType(asset.mimeType || 'image/jpeg');
             }
         } catch (error) {
             Alert.alert('Error', 'No se pudo abrir la galería.');
@@ -118,7 +118,7 @@ export default function NuevoPosteo() {
             if (imagenUri && /^https?:\/\//i.test(imagenUri)) {
                 imagen = imagenUri;
             } else if (imagenUri) {
-                imagen = await subirFoto(imagenUri, mimeFoto);
+                imagen = await subirImagen(imagenUri, imagenMimeType);
             }
 
             const nombreLimpio = nombre.trim();

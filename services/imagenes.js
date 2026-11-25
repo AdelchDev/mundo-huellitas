@@ -1,37 +1,22 @@
-import * as FileSystem from 'expo-file-system/legacy';
-
+import { File } from 'expo-file-system';
 import { apiRequest } from './api';
 
-async function leerBase64(uri) {
-    try {
-        return await FileSystem.readAsStringAsync(uri, {
-            encoding: FileSystem.EncodingType.Base64,
-        });
-    } catch (error) {
-        const destino = `${FileSystem.cacheDirectory}foto-${Date.now()}.jpg`;
-        await FileSystem.copyAsync({ from: uri, to: destino });
-        return FileSystem.readAsStringAsync(destino, {
-            encoding: FileSystem.EncodingType.Base64,
-        });
+export async function subirImagen(imagenUri, mimeType) {
+    if (!imagenUri) {
+        throw new Error('No se seleccionó ninguna imagen');
     }
-}
 
-/**
- * Lee la foto del teléfono y la guarda en el backend.
- * Devuelve una URL http para persistir en la publicación.
- */
-export async function subirFoto(uri, mime = 'image/jpeg') {
-    const tipo = mime.startsWith('image/') ? mime : 'image/jpeg';
-    const base64 = await leerBase64(uri);
+    const archivo = new File(imagenUri);
+    const tipoImagen = mimeType || archivo.type || 'image/jpeg';
 
-    const data = await apiRequest('/api/imagenes/local-json', {
+    const data = await apiRequest('/api/imagenes', {
         method: 'POST',
-        body: JSON.stringify({ base64, mime: tipo }),
+        headers: {
+            'Content-Type': tipoImagen,
+        },
+        body: archivo,
     });
-
-    if (!data?.url) {
-        throw new Error('El servidor no devolvió la dirección de la foto.');
-    }
 
     return data.url;
 }
+
