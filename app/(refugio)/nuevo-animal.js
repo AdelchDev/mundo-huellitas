@@ -3,10 +3,7 @@ import {
     ActivityIndicator,
     Alert,
     Image,
-    KeyboardAvoidingView,
-    Platform,
     Pressable,
-    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -19,6 +16,7 @@ import { useRouter } from 'expo-router';
 
 import { crearAnimal } from '../../services/animales';
 import { getCurrentUser } from '../../services/authService';
+import FormularioScroll from '../../components/formularioScroll';
 
 const colors = {
     primary: '#795548',
@@ -145,14 +143,7 @@ export default function NuevoAnimal() {
 
     return (
         <SafeAreaView edges={['top']} style={styles.container}>
-            <KeyboardAvoidingView
-                style={styles.flex}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            >
-                <ScrollView
-                    contentContainerStyle={styles.content}
-                    keyboardShouldPersistTaps="handled"
-                >
+            <FormularioScroll contentContainerStyle={styles.content}>
                     <Pressable
                         onPress={() => router.back()}
                         style={styles.back}
@@ -305,8 +296,7 @@ export default function NuevoAnimal() {
                             </Text>
                         )}
                     </Pressable>
-                </ScrollView>
-            </KeyboardAvoidingView>
+            </FormularioScroll>
         </SafeAreaView>
     );
 }
