@@ -19,6 +19,7 @@ import { useRouter } from 'expo-router';
 
 import { crearAnimal } from '../../services/animales';
 import { getCurrentUser } from '../../services/authService';
+import { subirImagen } from '../../services/imagenes';
 
 const colors = {
     primary: '#795548',
@@ -53,6 +54,7 @@ export default function NuevoAnimal() {
     const [sexo, setSexo] = useState('Hembra');
     const [descripcion, setDescripcion] = useState('');
     const [imagenUri, setImagenUri] = useState(null);
+    const [imagenMimeType, setImagenMimeType] = useState(null);
     const [guardando, setGuardando] = useState(false);
 
     const elegirFoto = async () => {
@@ -76,7 +78,10 @@ export default function NuevoAnimal() {
             });
 
             if (!result.canceled) {
-                setImagenUri(result.assets[0].uri);
+                const asset = result.assets[0];
+
+                setImagenUri(asset.uri);
+                setImagenMimeType(asset.mimeType || 'image/jpeg');
             }
         } catch (error) {
             Alert.alert('Error', 'No se pudo abrir la galería.');
@@ -104,11 +109,19 @@ export default function NuevoAnimal() {
 
             // El backend guarda un string URL. Las URI file:// del celular
             // no son accesibles para otros usuarios → usamos URL pública.
-            const imagen =
-                imagenUri && /^https?:\/\//i.test(imagenUri)
-                    ? imagenUri
-                    : IMAGEN_DEFAULT;
+            let imagen = IMAGEN_DEFAULT;
 
+            if (imagenUri) {
+                if (imagenUri.startsWith('http')) {
+                    imagen = imagenUri;
+                } else {
+                    imagen = await subirImagen(
+                        imagenUri,
+                        imagenMimeType
+                    );
+                }
+            }
+            
             await crearAnimal({
                 nombre: nombre.trim(),
                 especie,

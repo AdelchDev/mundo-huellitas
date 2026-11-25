@@ -20,6 +20,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { getMisAnimales } from '../../services/animales';
 import { crearPosteo } from '../../services/posteos';
 import { getCurrentUser } from '../../services/authService';
+import { subirImagen } from '../../services/imagenes';
 
 const colors = {
     primary: '#795548',
@@ -41,6 +42,7 @@ export default function NuevoPosteo() {
     const [titulo, setTitulo] = useState('');
     const [texto, setTexto] = useState('');
     const [imagenUri, setImagenUri] = useState(null);
+    const [imagenMimeType, setImagenMimeType] = useState(null);
     const [cargandoAnimales, setCargandoAnimales] = useState(true);
     const [publicando, setPublicando] = useState(false);
 
@@ -118,7 +120,9 @@ export default function NuevoPosteo() {
             });
 
             if (!result.canceled) {
-                setImagenUri(result.assets[0].uri);
+                const asset = result.assets[0];
+                setImagenUri(asset.uri);
+                setImagenMimeType(asset.mimeType || 'image/jpeg');
             }
         } catch (error) {
             Alert.alert('Error', 'No se pudo abrir la galería.');
@@ -145,11 +149,15 @@ export default function NuevoPosteo() {
         try {
             setPublicando(true);
 
-            const imagen =
-                imagenUri && /^https?:\/\//i.test(imagenUri)
-                    ? imagenUri
-                    : IMAGEN_DEFAULT;
+            let imagen = IMAGEN_DEFAULT;
 
+            if (imagenUri) {
+                if (/^https?:\/\//i.test(imagenUri)) {
+                    imagen = imagenUri;
+                } else {
+                    imagen = await subirImagen(imagenUri, imagenMimeType);
+                }
+            }
             await crearPosteo({
                 titulo: titulo.trim(),
                 texto: texto.trim(),
